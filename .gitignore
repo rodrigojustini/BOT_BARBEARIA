@@ -4,6 +4,7 @@ package-lock.json
 
 # Arquivos de ambiente
 .env
+.envi
 .env.local
 .env.*.local
 
