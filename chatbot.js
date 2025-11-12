@@ -381,7 +381,7 @@ function initializeBot() {
         '--no-first-run','--disable-background-timer-throttling','--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
       ],
-      executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Caminho para o Chrome no Windows
+      executablePath: process.env.CHROME_PATH || '/usr/bin/chromium', // Caminho para o Chrome
       ignoreHTTPSErrors: true,
       slowMo: 10,
     },
