@@ -1,0 +1,42 @@
+{
+  "name": "sr-justini-bot",
+  "version": "2.0.0",
+  "description": "Bot automatizado para agendamento de serviços da Barbearia Sr. Justini via WhatsApp",
+  "main": "chatbot.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node chatbot.js",
+    "dev": "node chatbot.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop sr-justini-bot",
+    "pm2:restart": "pm2 restart sr-justini-bot",
+    "pm2:logs": "pm2 logs sr-justini-bot",
+    "pm2:status": "pm2 status"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "chatbot",
+    "barbearia",
+    "agendamento"
+  ],
+  "author": "Barbearia Sr. Justini",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seu-usuario/sr-justini-bot.git"
+  }
+}
+

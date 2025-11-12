@@ -1,0 +1,43 @@
+# Dependências
+node_modules/
+package-lock.json
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.*.local
+
+# Sessão do WhatsApp (não compartilhar!)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Logs do PM2
+.pm2/
+*.log
+logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Arquivos temporários
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Sistema operacional
+*.bak
+desktop.ini
+
+# Build
+dist/
+build/

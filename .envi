@@ -1,0 +1,14 @@
+NODE_ENV=production
+TZ=America/Fortaleza
+PORT=3001
+
+STRICT_MENU=true
+MAX_CONCURRENT_BOOKINGS=1
+
+AUTH_CLIENT_ID=sr-justini-minimal
+AUTH_DATA_PATH=C:\Users\ise2j\Desktop\js\.wwebjs_auth
+
+CHROME_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+
+# Desligado por padrão — ativa só quando quiser
+ENABLE_INTEL_RESPONSE=false
