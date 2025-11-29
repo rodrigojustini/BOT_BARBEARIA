@@ -1,7 +1,7 @@
-// ========================================
+/// ========================================
 // SERVIDOR PRINCIPAL - Minimal + Agenda + Feriados + Capacidade
 // Extras: pausa ao pedir atendente, Instagram, anti-duplicata, MENU INTERATIVO (List) + fallback texto
-// Hetzner-ready: Chromium do sistema, sessão persistente, PM2, SIGTERM/SIGINT
+// Hetzner-ready: sessão persistente, PM2, SIGTERM/SIGINT
 // ========================================
 
 const express = require('express');
@@ -19,12 +19,25 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 const STRICT_MENU = String(process.env.STRICT_MENU || '').toLowerCase() === 'true';
 const MAX_CONCURRENT_BOOKINGS = parseInt(process.env.MAX_CONCURRENT_BOOKINGS || '1', 10);
 
-// Sessão (reuse SEM QR) — padrão seguro p/ Hetzner + PM2
-const DEFAULT_DATA_DIR = process.env.AUTH_DATA_PATH || '/var/lib/srjustini-bot';
+// Sessão (reuse SEM QR) — padrão seguro p/ produção
+const DEFAULT_DATA_DIR = process.env.AUTH_DATA_PATH || (process.platform === 'win32'
+  ? 'C:\\var\\lib\\srjustini-bot'
+  : '/var/lib/srjustini-bot'
+);
 const AUTH_DATA_PATH = path.resolve(DEFAULT_DATA_DIR);
 const AUTH_CLIENT_ID = process.env.AUTH_CLIENT_ID || 'sr-justini-minimal';
 const SESSION_DIR = path.join(AUTH_DATA_PATH, 'wwebjs_auth', AUTH_CLIENT_ID);
+
 console.log('📁 Local da sessão:', SESSION_DIR);
+
+// Garante que as pastas existem
+try {
+  if (!fs.existsSync(AUTH_DATA_PATH)) fs.mkdirSync(AUTH_DATA_PATH, { recursive: true });
+  const sessionBase = path.dirname(SESSION_DIR);
+  if (!fs.existsSync(sessionBase)) fs.mkdirSync(sessionBase, { recursive: true });
+} catch (e) {
+  console.error('Erro ao criar diretórios de sessão:', e.message);
+}
 
 // ====== ESTADO GLOBAL ======
 let botState = {
@@ -36,6 +49,7 @@ let botState = {
 };
 
 let client = null;
+let reconnectAttempts = 0;
 
 // ====== AGENDA EM MEMÓRIA ======
 /**
@@ -370,22 +384,14 @@ function initializeBot() {
 
   client = new Client({
     authStrategy: new LocalAuth({
-      clientId: "sr-justini-bot", // Identificador único para a sessão
-      dataPath: '.wwebjs_auth'   // Caminho para os dados de autenticação
+      clientId: AUTH_CLIENT_ID,
+      dataPath: AUTH_DATA_PATH
     }),
-    puppeteer: {
-      headless: true, // Executar em modo headless
-      args: [
-        '--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage',
-        '--disable-features=VizDisplayCompositor','--disable-extensions','--disable-plugins',
-        '--no-first-run','--disable-background-timer-throttling','--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding',
-      ],
-      executablePath: process.env.CHROME_PATH || '/usr/bin/chromium', // Caminho para o Chrome
-      ignoreHTTPSErrors: true,
-      slowMo: 10,
-    },
-    restartOnAuthFail: true, qrMaxRetries: 5, takeoverOnConflict: true, takeoverTimeoutMs: 0,
+    // Sem puppeteer custom → usa padrão do whatsapp-web.js + puppeteer
+    restartOnAuthFail: true,
+    qrMaxRetries: 5,
+    takeoverOnConflict: true,
+    takeoverTimeoutMs: 0,
   });
 
   // Logs úteis p/ diagnóstico de sessão
@@ -393,20 +399,33 @@ function initializeBot() {
     console.log('⏳ Carregando:', percent, msg);
   });
   client.on('authenticated', () => {
-    reconnectAttempts = 0; // Reseta as tentativas ao autenticar
+    reconnectAttempts = 0;
     console.log('🔐 Sessão autenticada.');
   });
   client.on('qr', (qr) => {
-    console.log('QR Code recebido:', qr);
+    console.log('🔗 QR Code recebido. Escaneie com o WhatsApp:');
+    try {
+      qrcodeTerminal.generate(qr, { small: true });
+    } catch (e) {
+      console.log('QR:', qr);
+    }
   });
 
-  client.on('ready', () => { botState.connected = true; botState.authenticated = true; console.log('✅ Bot WhatsApp conectado e pronto!'); });
+  client.on('ready', () => {
+    botState.connected = true;
+    botState.authenticated = true;
+    console.log('✅ Bot WhatsApp conectado e pronto!');
+  });
   client.on('auth_failure', (msg) => {
     console.error('Falha de autenticação:', msg);
   });
   client.on('disconnected', (reason) => {
     console.log('Bot desconectado. Motivo:', reason);
-    client.initialize(); // Reconecta automaticamente
+    try {
+      client.initialize();
+    } catch (e) {
+      console.error('Erro ao tentar reinicializar o cliente:', e.message);
+    }
   });
 
   client.on('message', async (msg) => {
@@ -415,11 +434,16 @@ function initializeBot() {
       if (chat.isGroup || msg.fromMe) return;
       if (msg.type !== 'chat') return;
 
-      const contact = await msg.getContact();
-      if ((contact.isBusiness ?? false) || contact.isWAContact === false) return;
+      // === Removido: msg.getContact() para evitar bug getIsMyContact ===
+      // Agora pegamos nome/telefone direto da mensagem
+      const name =
+        (msg._data && (msg._data.notifyName || msg._data.pushname)) ||
+        'cliente';
 
-      const name = contact.pushname || 'cliente';
-      const phone = contact.number || msg.from.replace('@c.us','');
+      const phone = msg.from
+        .replace('@c.us', '')
+        .replace('@g.us', '');
+
       const body = (msg.body || '').trim();
       const lower = body.toLowerCase();
       const normalized = lower.replace(/\s*•.*/, ''); // "1 • ..." -> "1"
@@ -543,7 +567,7 @@ function initializeBot() {
             await sendMainMenu(msg, name);
             return;
           }
-          await replyUnique(msg, 'Responda *"sim"* para transferir ao atendente, ou *"menu"* para voltar.');
+          await replyUnique(msg, 'Responda *"sim"* para transferir ao atendente, ou "menu" para voltar.');
           return;
         }
 
@@ -711,7 +735,6 @@ function initializeBot() {
         const cliente = {
           id: msg.from,
           nome: name,
-          // Integra com sua agenda real quando houver (aqui, default false)
           temAgendamentoConfirmado: false,
           ultimaMensagem: new Date(),
         };
@@ -755,4 +778,4 @@ process.on('SIGINT', async () => {
 // Inicia automático após 2s (reutilizando sessão se existir)
 setTimeout(() => { initializeBot(); }, 2000);
 
-console.log('🚀 Bot Server iniciado (menu interativo + agenda + feriados + capacidade + pausa de atendente)!'); // corrige: comentário válido
+console.log('🚀 Bot Server iniciado (menu interativo + agenda + feriados + capacidade + pausa de atendente)!'); // comentário válido
