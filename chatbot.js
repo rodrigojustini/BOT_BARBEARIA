@@ -11,7 +11,7 @@ const qrcodeTerminal = require('qrcode-terminal');
 require('dotenv').config();
 
 // WhatsApp
-const { Client, LocalAuth, List } = require('whatsapp-web.js');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 
 // ====== CONFIG BÁSICA ======
 const app = express();
@@ -240,22 +240,9 @@ function buildMenuOptions() {
 }
 
 async function sendMainMenu(msg, name) {
-  try {
-    const sections = [{ title: 'Como posso ajudar?', rows: buildMenuOptions() }];
-    const list = new List(
-      'Toque para escolher uma opção:',
-      'Abrir menu',
-      sections,
-      'Barbearia Sr. Justini 💈',
-      'Você também pode digitar o número da opção.'
-    );
-    await msg.reply(list);
-    lastResponseByUser.set(msg.from, '__MENU_LIST__');
-    return true;
-  } catch (e) {
-    const text = buildPrettyMenuText(name);
-    return replyUnique(msg, text);
-  }
+  // Listas foram descontinuadas pelo WhatsApp, usar apenas texto
+  const text = buildPrettyMenuText(name);
+  return replyUnique(msg, text);
 }
 
 // ====== API ======
